@@ -2,8 +2,12 @@
 # Licensed under the MIT License.
 
 """Defines the Causal Manager class."""
+import json
 import numpy as np
 import pandas as pd
+import pickle
+
+from pathlib import Path
 
 from econml.solutions.causal_analysis import CausalAnalysis
 
@@ -279,9 +283,6 @@ class CausalManager(BaseManager):
                 results.append(config.to_result())
         return results
 
-    def list(self):
-        pass
-
     def get_data(self):
         """Get causal data
 
@@ -356,9 +357,44 @@ class CausalManager(BaseManager):
         """
         return ManagerNames.CAUSAL
 
-    def _save(self, path):
+    def list(self):
         pass
+
+    # def _save(self, path):
+    #     pass
+
+    # @staticmethod
+    # def _load(path, model_analysis):
+    #     pass
+
+    def _save(self, path):
+        save_dir = Path(path)
+        save_dir.mkdir(parents=True, exist_ok=True)
+
+        results_path = save_dir / 'results'
+        with open(results_path, 'wb') as f:
+            pickle.dump(self._results, f)
 
     @staticmethod
     def _load(path, model_analysis):
-        pass
+        manager = CausalManager.__new__(CausalManager)
+
+        top_dir = Path(path)
+
+        results_path = top_dir / 'results'
+        with open(results_path, 'rb') as f:
+            results = pickle.load(f)
+
+        manager.__dict__['_results'] = results
+
+        categorical_features = model_analysis.categorical_features
+        manager.__dict__['_categorical_features'] = categorical_features
+
+        target_column = model_analysis.target_column
+        y_train = model_analysis.train[target_column]
+        train = model_analysis.train.drop(columns=[target_column])
+        manager.__dict__['_train'] = train
+        manager.__dict__['_y_train'] = y_train
+        feature_names = list(train.columns)
+        manager.__dict__['_feature_names'] = feature_names
+        return manager
