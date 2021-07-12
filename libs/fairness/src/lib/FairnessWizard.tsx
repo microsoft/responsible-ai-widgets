@@ -23,6 +23,7 @@ import { PerformanceTab } from "./Controls/PerformanceTab";
 import { FairnessWizardStyles } from "./FairnessWizard.styles";
 import { IFairnessProps } from "./IFairnessProps";
 import { defaultTheme } from "./Themes";
+import { IErrorOption } from "./util/ErrorMetrics";
 import {
   IFairnessOption,
   fairnessOptions,
@@ -54,6 +55,12 @@ export interface IFairnessPickerPropsV2 {
   onFairnessChange: (newKey: string) => void;
 }
 
+export interface IErrorPickerPropsV2 {
+  errorOptions?: IErrorOption[];
+  selectedErrorKey: string;
+  onErrorChange: (newKey: string) => void;
+}
+
 export interface IFeatureBinPickerPropsV2 {
   featureBins: IBinnedResponse[];
   selectedBinIndex: number;
@@ -67,8 +74,10 @@ export interface IWizardStateV2 {
   dashboardContext: IFairnessContext;
   performanceMetrics: IPerformanceOption[];
   fairnessMetrics: IFairnessOption[];
+  errorMetrics?: IErrorOption[];
   selectedPerformanceKey: string;
   selectedFairnessKey: string;
+  selectedErrorKey: string;
   featureBins: IBinnedResponse[];
   selectedBinIndex: number;
   metricCache: MetricsCache;
@@ -97,6 +106,7 @@ export class FairnessWizardV2 extends React.PureComponent<
     let fairnessMetrics: IFairnessOption[];
     let selectedPerformanceKey: string;
     let selectedFairnessKey: string;
+    let selectedErrorKey: string;
     loadTheme(props.theme || defaultTheme);
     // handle the case of precomputed metrics separately. As it becomes more defined, can integrate with existing code path.
     if (this.props.precomputedMetrics && this.props.precomputedFeatureBins) {
@@ -126,6 +136,7 @@ export class FairnessWizardV2 extends React.PureComponent<
         fairnessMetrics,
         defaultFairnessMetricPrioritization
       );
+      selectedErrorKey = "enabled";
 
       this.state = {
         activeTabKey: featureBinTabKey,
@@ -142,6 +153,7 @@ export class FairnessWizardV2 extends React.PureComponent<
         ),
         performanceMetrics,
         selectedBinIndex: 0,
+        selectedErrorKey,
         selectedFairnessKey,
         selectedModelId: this.props.predictedY.length === 1 ? 0 : undefined,
         selectedPerformanceKey,
@@ -176,6 +188,8 @@ export class FairnessWizardV2 extends React.PureComponent<
       defaultFairnessMetricPrioritization
     );
 
+    selectedErrorKey = "enabled";
+
     this.state = {
       activeTabKey: introTabKey,
       dashboardContext: fairnessContext,
@@ -188,6 +202,7 @@ export class FairnessWizardV2 extends React.PureComponent<
       ),
       performanceMetrics,
       selectedBinIndex: 0,
+      selectedErrorKey,
       selectedFairnessKey,
       selectedModelId: this.props.predictedY.length === 1 ? 0 : undefined,
       selectedPerformanceKey,
@@ -215,6 +230,11 @@ export class FairnessWizardV2 extends React.PureComponent<
       fairnessOptions: this.state.fairnessMetrics,
       onFairnessChange: this.setFairnessKey,
       selectedFairnessKey: this.state.selectedFairnessKey
+    };
+    const errorPickerProps = {
+      errorOptions: this.state.errorMetrics,
+      onErrorChange: this.setErrorKey,
+      selectedErrorKey: this.state.selectedErrorKey
     };
     const featureBinPickerProps = {
       featureBins: this.state.featureBins,
@@ -306,6 +326,7 @@ export class FairnessWizardV2 extends React.PureComponent<
               performancePickerProps={performancePickerProps}
               onChartClick={this.onSelectModel}
               fairnessPickerProps={fairnessPickerProps}
+              errorPickerProps={errorPickerProps}
               featureBinPickerProps={featureBinPickerProps}
               selectedModelIndex={this.state.selectedModelId}
               onHideIntro={this.hideIntro.bind(this)}
@@ -322,6 +343,7 @@ export class FairnessWizardV2 extends React.PureComponent<
               modelCount={this.props.predictedY.length}
               performancePickerProps={performancePickerProps}
               fairnessPickerProps={fairnessPickerProps}
+              errorPickerProps={errorPickerProps}
               featureBinPickerProps={featureBinPickerProps}
               onHideIntro={this.hideIntro.bind(this)}
               onEditConfigs={this.setTab.bind(this, featureBinTabKey)}
@@ -393,6 +415,10 @@ export class FairnessWizardV2 extends React.PureComponent<
 
   private readonly setFairnessKey = (key: string): void => {
     this.setState({ selectedFairnessKey: key });
+  };
+
+  private readonly setErrorKey = (key: string): void => {
+    this.setState({ selectedErrorKey: key });
   };
 
   private readonly setBinIndex = (index: number): void => {

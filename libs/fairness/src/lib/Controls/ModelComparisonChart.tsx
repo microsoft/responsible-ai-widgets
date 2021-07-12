@@ -8,6 +8,7 @@ import {
   IPlotlyProperty,
   PlotlyMode
 } from "@responsible-ai/mlchartlib";
+import { IBounds } from "libs/core-ui/src/lib/Interfaces/IFairnessData";
 import _ from "lodash";
 import {
   ActionButton,
@@ -27,7 +28,8 @@ import React from "react";
 import {
   IPerformancePickerPropsV2,
   IFeatureBinPickerPropsV2,
-  IFairnessPickerPropsV2
+  IFairnessPickerPropsV2,
+  IErrorPickerPropsV2
 } from "../FairnessWizard";
 import { SharedStyles } from "../Shared.styles";
 
@@ -46,6 +48,7 @@ export interface IModelComparisonProps {
   modelCount: number;
   performancePickerProps: IPerformancePickerPropsV2;
   fairnessPickerProps: IFairnessPickerPropsV2;
+  errorPickerProps: IErrorPickerPropsV2;
   featureBinPickerProps: IFeatureBinPickerPropsV2;
   onHideIntro: () => void;
   onEditConfigs: () => void;
@@ -58,7 +61,10 @@ export interface IState {
   performanceKey?: string;
   fairnessKey?: string;
   performanceArray?: number[];
+  performanceBounds?: Array<IBounds | undefined>;
   fairnessArray?: number[];
+  fairnessBounds?: Array<IBounds | undefined>;
+  errorKey?: string;
 }
 
 export class ModelComparisonChart extends React.Component<
@@ -99,7 +105,11 @@ export class ModelComparisonChart extends React.Component<
         textposition: "top",
         type: "scatter",
         xAccessor: "Performance",
-        yAccessor: "Fairness"
+        xAccessorLowerBound: "PerformanceLowerBound",
+        xAccessorUpperBound: "PerformanceUpperBound",
+        yAccessor: "Fairness",
+        yAccessorLowerBound: "FairnessLowerBound",
+        yAccessorUpperBound: "FairnessUpperBound"
       } as any
     ],
     layout: {
@@ -138,6 +148,7 @@ export class ModelComparisonChart extends React.Component<
   public constructor(props: IModelComparisonProps) {
     super(props);
     this.state = {
+      errorKey: this.props.errorPickerProps.selectedErrorKey,
       fairnessKey: this.props.fairnessPickerProps.selectedFairnessKey,
       performanceKey: this.props.performancePickerProps.selectedPerformanceKey
     };
@@ -162,14 +173,47 @@ export class ModelComparisonChart extends React.Component<
         />
       );
     } else {
-      const { fairnessArray } = this.state;
+      const {
+        fairnessArray,
+        fairnessBounds,
+        performanceBounds,
+        errorKey
+      } = this.state;
       const data = this.state.performanceArray.map((performance, index) => {
         return {
           Fairness: fairnessArray[index],
+          FairnessLowerBound: 0,
+          FairnessUpperBound: 0,
           index,
-          Performance: performance
+          Performance: performance,
+          PerformanceLowerBound: 0,
+          PerformanceUpperBound: 0
         };
       });
+
+      if (errorKey !== "disabled") {
+        if (_.isArray(performanceBounds)) {
+          performanceBounds.forEach((bounds, index) => {
+            if (bounds !== undefined) {
+              data[index].PerformanceLowerBound =
+                data[index].Performance - bounds.lower;
+              data[index].PerformanceUpperBound =
+                bounds.upper - data[index].Performance;
+            }
+          });
+        }
+
+        if (_.isArray(fairnessBounds)) {
+          fairnessBounds.forEach((bounds, index) => {
+            if (bounds !== undefined) {
+              data[index].FairnessLowerBound =
+                data[index].Fairness - bounds.lower;
+              data[index].FairnessUpperBound =
+                bounds.upper - data[index].Fairness;
+            }
+          });
+        }
+      }
 
       const selectedMetric =
         performanceOptions[
@@ -306,13 +350,17 @@ export class ModelComparisonChart extends React.Component<
           </Text>
         </div>
         <DropdownBar
+          fairnessBounds={this.state.fairnessBounds}
+          performanceBounds={this.state.performanceBounds}
           dashboardContext={this.props.dashboardContext}
           performancePickerProps={this.props.performancePickerProps}
           fairnessPickerProps={this.props.fairnessPickerProps}
+          errorPickerProps={this.props.errorPickerProps}
           featureBinPickerProps={this.props.featureBinPickerProps}
           parentFeatureChanged={this.featureChanged}
           parentFairnessChanged={this.fairnessChanged}
           parentPerformanceChanged={this.performanceChanged}
+          parentErrorChanged={this.errorChanged}
         />
         {mainChart}
       </Stack>
@@ -328,7 +376,8 @@ export class ModelComparisonChart extends React.Component<
             this.props.dashboardContext.binVector,
             this.props.featureBinPickerProps.selectedBinIndex,
             modelIndex,
-            this.props.performancePickerProps.selectedPerformanceKey
+            this.props.performancePickerProps.selectedPerformanceKey,
+            this.props.errorPickerProps.selectedErrorKey
           );
         });
       const fairnessOption =
@@ -341,15 +390,41 @@ export class ModelComparisonChart extends React.Component<
             this.props.featureBinPickerProps.selectedBinIndex,
             modelIndex,
             this.props.fairnessPickerProps.selectedFairnessKey,
-            fairnessOption.fairnessMode
+            fairnessOption.fairnessMode,
+            this.props.errorPickerProps.selectedErrorKey
           );
         });
 
       const performanceArray = (await Promise.all(performancePromises)).map(
-        (metric) => metric.global
+        (metric) => {
+          return metric.global;
+        }
       );
-      const fairnessArray = await Promise.all(fairnessPromises);
-      this.setState({ fairnessArray, performanceArray });
+
+      const performanceBounds = (await Promise.all(performancePromises)).map(
+        (metric) => {
+          return metric.bounds;
+        }
+      );
+
+      const fairnessArray = (await Promise.all(fairnessPromises)).map(
+        (metric) => {
+          return metric.overall;
+        }
+      );
+
+      const fairnessBounds = (await Promise.all(fairnessPromises)).map(
+        (metric) => {
+          return metric.bounds;
+        }
+      );
+
+      this.setState({
+        fairnessArray,
+        fairnessBounds,
+        performanceArray,
+        performanceBounds
+      });
     } catch {
       // todo;
     }
@@ -402,6 +477,20 @@ export class ModelComparisonChart extends React.Component<
     if (this.state.fairnessKey !== fairnessKey) {
       this.props.fairnessPickerProps.onFairnessChange(fairnessKey);
       this.setState({ fairnessArray: undefined, fairnessKey });
+    }
+  };
+
+  private readonly errorChanged = (
+    _ev: React.FormEvent<HTMLDivElement>,
+    option?: IDropdownOption
+  ): void => {
+    if (!option) {
+      return;
+    }
+    const errorKey = option.key.toString();
+    if (this.state.errorKey !== errorKey) {
+      this.props.errorPickerProps.onErrorChange(errorKey);
+      this.setState({ errorKey });
     }
   };
 

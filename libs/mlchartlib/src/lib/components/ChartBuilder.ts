@@ -30,13 +30,21 @@ export class ChartBuilder {
       y: any;
       group: any;
       size: any;
+      xLowerBound: any;
+      xUpperBound: any;
+      yLowerBound: any;
+      yUpperBound: any;
     }> = jmespath.search(
       rows,
       `${datum.xAccessorPrefix || ""}[*].{x: ${datum.xAccessor}, y: ${
         datum.yAccessor
-      }, group: ${datum.groupBy}, size: ${
-        datum.sizeAccessor
-      }${datumLevelPaths}}`
+      }, xLowerBound: ${datum.xAccessorLowerBound}, xUpperBound: ${
+        datum.xAccessorUpperBound
+      },
+      yLowerBound: ${datum.yAccessorLowerBound}, yUpperBound: ${
+        datum.yAccessorUpperBound
+      }
+      , group: ${datum.groupBy}, size: ${datum.sizeAccessor}${datumLevelPaths}}`
     );
     // for bubble charts, we scale all sizes to the max size, only needs to be done once since its global
     // Due to https://github.com/plotly/plotly.js/issues/2080 we have to set size explicitly rather than use
@@ -118,6 +126,7 @@ export class ChartBuilder {
           (series.y as Datum[]).push(row.y);
         }
       }
+
       if (datum.sizeAccessor) {
         const size =
           (row.size * (datum.maxMarkerSize || 40) ** 2) / (2 * maxBubbleValue);
@@ -159,6 +168,34 @@ export class ChartBuilder {
     Object.keys(groupingDictionary).forEach((key) => {
       result.push(groupingDictionary[key]);
     });
+
+    const performanceLowerBound: any = [];
+    const performanceUpperBound: any = [];
+    projectedRows.forEach((row) => {
+      performanceLowerBound.push(row.xLowerBound);
+      performanceUpperBound.push(row.xUpperBound);
+    });
+
+    result[0].error_x = {
+      array: performanceUpperBound,
+      arrayminus: performanceLowerBound,
+      type: "data",
+      visible: true
+    }; // eslint-disable-line no-use-before-define
+
+    const fairnessLowerBound: any = [];
+    const fairnessUpperBound: any = [];
+    projectedRows.forEach((row) => {
+      fairnessLowerBound.push(row.yLowerBound);
+      fairnessUpperBound.push(row.yUpperBound);
+    });
+
+    result[0].error_y = {
+      array: fairnessLowerBound,
+      arrayminus: fairnessUpperBound,
+      type: "data",
+      visible: true
+    }; // eslint-disable-line no-use-before-define
     return result;
   }
 

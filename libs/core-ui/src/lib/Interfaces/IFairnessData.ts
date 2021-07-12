@@ -16,15 +16,28 @@ export type PredictionType =
   | PredictionTypes.Probability
   | PredictionTypes.Regression;
 
+export interface IBounds {
+  lower: number;
+  upper: number;
+}
+
 export interface IMetricResponse {
   global: number;
   bins: number[];
+  bounds?: IBounds;
+  binBounds?: IBounds[];
 }
 
 export interface IMetricRequest {
   metricKey: string;
   binVector: number[];
   modelIndex: number;
+  errorKey?: string;
+}
+
+export interface IFairnessResponse {
+  overall: number;
+  bounds?: IBounds;
 }
 
 export interface IFeatureBinMeta {

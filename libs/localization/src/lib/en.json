@@ -1016,6 +1016,10 @@
       "equalizedOddsRatio": "Equalized odds ratio",
       "equalizedOddsRatioDescription": "Either the minimum ratio between true positive rates of any two groups or the minimum ratio between false positive rates of any two groups, whichever is smaller.",
       "trueNegativeRateDifference": "True negative rate difference",
+      "errorMetricEnabled": "Enabled",
+      "errorMetricDisabled": "Disabled",
+      "errorMetricEnabledDescription": "Enables plotting of confidence bounds for displayed metrics",
+      "errorMetricDisabledDescription": "Disables plotting of confidence bounds for displayed metrics",
       "errorRateDifference": "Error rate difference",
       "errorRateDifferenceDescription": "The maximum difference between the error rates of any two groups.",
       "errorRateRatio": "Error rate ratio",
@@ -1081,7 +1085,8 @@
     "DropdownHeaders": {
       "sensitiveFeature": "Sensitive feature",
       "performanceMetric": "Performance metric",
-      "fairnessMetric": "Fairness metric"
+      "fairnessMetric": "Fairness metric",
+      "errorMetric": "Error bar function"
     }
   },
   "ModelAssessment": {

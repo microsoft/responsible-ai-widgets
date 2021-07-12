@@ -1,13 +1,16 @@
 // Copyright (c) Microsoft Corporation.
 // Licensed under the MIT License.
 
+import { IBounds } from "@responsible-ai/core-ui";
 import { localization } from "@responsible-ai/localization";
+import _ from "lodash";
 import { Stack, Dropdown, IDropdownOption } from "office-ui-fabric-react";
 import React from "react";
 
 import {
   IPerformancePickerPropsV2,
   IFairnessPickerPropsV2,
+  IErrorPickerPropsV2,
   IFeatureBinPickerPropsV2
 } from "../FairnessWizard";
 
@@ -17,6 +20,7 @@ export interface IDropdownBarProps {
   dashboardContext: IFairnessContext;
   performancePickerProps: IPerformancePickerPropsV2;
   fairnessPickerProps: IFairnessPickerPropsV2;
+  errorPickerProps: IErrorPickerPropsV2;
   featureBinPickerProps: IFeatureBinPickerPropsV2;
   parentPerformanceChanged: {
     (_ev: React.FormEvent<HTMLDivElement>, option?: IDropdownOption): void;
@@ -27,6 +31,11 @@ export interface IDropdownBarProps {
   parentFeatureChanged: {
     (_ev: React.FormEvent<HTMLDivElement>, option?: IDropdownOption): void;
   };
+  parentErrorChanged: {
+    (_ev: React.FormEvent<HTMLDivElement>, option?: IDropdownOption): void;
+  };
+  fairnessBounds?: Array<IBounds | undefined>;
+  performanceBounds?: Array<IBounds | undefined>;
 }
 
 export class DropdownBar extends React.PureComponent<IDropdownBarProps> {
@@ -81,6 +90,29 @@ export class DropdownBar extends React.PureComponent<IDropdownBarProps> {
           options={fairnessDropdown}
           disabled={false}
           onChange={this.props.parentFairnessChanged}
+        />
+        <Dropdown
+          style={{ minWidth: "240px" }}
+          id="errorMetricDropdown"
+          label={localization.Fairness.DropdownHeaders.errorMetric}
+          defaultSelectedKey={this.props.errorPickerProps.selectedErrorKey}
+          options={[
+            {
+              key: "disabled",
+              text: localization.Fairness.Metrics.errorMetricDisabled
+            },
+            {
+              key: "enabled",
+              text: localization.Fairness.Metrics.errorMetricEnabled
+            }
+          ]}
+          disabled={
+            (typeof this.props.fairnessBounds === "undefined" ||
+              _.isEmpty(this.props.fairnessBounds.filter(Boolean))) &&
+            (typeof this.props.performanceBounds === "undefined" ||
+              _.isEmpty(this.props.performanceBounds.filter(Boolean)))
+          }
+          onChange={this.props.parentErrorChanged}
         />
       </Stack>
     );
